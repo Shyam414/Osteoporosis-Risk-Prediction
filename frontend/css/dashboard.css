@@ -1,0 +1,87 @@
+/* --- Reset some basic styles --- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.container {
+  width: 90%;
+  max-width: 900px;
+  margin: 2rem auto;
+}
+
+/* Navbar placeholder */
+#navbar {
+  margin-bottom: 2rem;
+}
+
+/* Page title */
+h1 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #444;
+}
+
+/* Dashboard history grid */
+#history {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Individual card */
+.card {
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+/* Card image */
+.card img {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 8px;
+  margin-bottom: 0.8rem;
+}
+
+/* Probability container */
+.card .probability-container {
+  background-color: #e0e0e0; /* light grey background */
+  border-radius: 8px;
+  height: 20px;
+  width: 100%;
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+
+/* Probability fill */
+.card .probability-fill {
+  height: 100%;
+  border-radius: 8px;
+  text-align: center;
+  color: #fff;
+  font-weight: bold;
+  line-height: 20px;
+}
+.card .probability-fill.positive {
+  background-color: #e74c3c; /* red */
+}
+.card .probability-fill.negative {
+  background-color: #27ae60; /* green */
+}

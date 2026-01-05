@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="css/admin.css" />
+  <script src="js/api.js"></script>
+</head>
+
+<body>
+  <header id="navbar"></header>
+
+  <main class="container">
+    <h1>Admin Dashboard</h1>
+    <p class="subtitle">System control panel</p>
+
+    <p id="admin-message"></p>
+
+    <!-- ===== STATS ===== -->
+    <section class="card">
+      <h2>Statistics</h2>
+      <div id="stats">Loading...</div>
+    </section>
+
+    <!-- ===== USERS ===== -->
+    <section class="card">
+      <h2>Users</h2>
+
+      <label for="roleFilter"><b>Filter Users</b></label>
+      <select id="roleFilter">
+        <option value="all">Select Admins or Users</option>
+        <option value="admin">Admins</option>
+        <option value="user">Users</option>
+      </select>
+
+
+      <div id="users">Loading...</div>
+    </section>
+
+    <!-- ===== RECORDS ===== -->
+    <section class="card">
+      <h2>Records</h2>
+
+      <label for="userFilter">Select User</label>
+      <select id="userFilter">
+        <option value="">-- Select a user --</option>
+      </select>
+
+      <div id="records" class="records-grid">
+        <p>Select a user to view records</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const token = localStorage.getItem("access_token");
+    const role = localStorage.getItem("role");
+    const currentUserId = localStorage.getItem("user_id"); 
+    const msg = document.getElementById("admin-message");
+
+    if (!token || role !== "admin") {
+      window.location.href = "adminlogin.html";
+    }
+
+    // ===== NAVBAR =====
+    fetch("_navbar.html")
+      .then(r => r.text())
+      .then(html => {
+        document.getElementById("navbar").innerHTML = html;
+        document.getElementById("logout-btn")?.addEventListener("click", () => {
+          localStorage.clear();
+          window.location.href = "login.html";
+        });
+      });
+
+    let ALL_USERS = [];
+    let ALL_RECORDS = [];
+
+    // ===== UI HELPERS =====
+    async function uiDeleteUser(userId, email) {
+      if (!confirm(`Delete user ${email} and ALL records?`)) return;
+
+      try {
+        await apiDeleteUser(userId);
+        msg.style.color = "#2e7d32";
+        msg.textContent = `User ${email} deleted`;
+        document.getElementById("userFilter").value = "";
+        document.getElementById("records").innerHTML =
+          "<p>Select a user</p>";
+        loadAdmin();
+      } catch (e) {
+        msg.style.color = "#e53935";
+        msg.textContent = e.message;
+      }
+    }
+
+    async function uiDeleteRecord(recordId) {
+      if (!confirm("Delete record?")) return;
+      await apiDeleteRecord(recordId);
+      loadAdmin();
+    }
+
+    // ===== LOAD ADMIN =====
+    async function loadAdmin() {
+      try {
+        const stats = await getAdminStats();
+        ALL_USERS = await getAllUsers();
+        ALL_RECORDS = await getAllRecords();
+
+        document.getElementById("stats").innerHTML = `
+          <div class="stats-grid">
+            <div class="stat">${stats.total_users}<span>Total Users</span></div>
+            <div class="stat">${stats.verified_users}<span>Verified</span></div>
+            <div class="stat">${stats.total_records}<span>Records</span></div>
+          </div>
+        `;
+
+        renderUsers();
+        renderUserFilter();
+        renderRecords()
+
+      } catch (err) {
+        msg.textContent = err.message || "Failed to load admin panel";
+      }
+    }
+
+    function renderUsers() {
+        const roleFilter = document.getElementById("roleFilter").value;
+
+        let users = [];
+
+        // show users ONLY after admin/user is selected
+        if (roleFilter === "admin" || roleFilter === "user") {
+          users = ALL_USERS.filter(u => u.role === roleFilter);
+        }
+
+        // if nothing selected, show message instead of table
+        if (users.length === 0) {
+          document.getElementById("users").innerHTML = `
+            <p>Please select Admins or Users</p>
+          `;
+          return;
+        }
+
+        document.getElementById("users").innerHTML = `
+          <table>
+            <tr>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Verified</th>
+              <th>Action</th>
+            </tr>
+
+            ${users.map(u => `
+              <tr>
+                <td>${u.email}</td>
+                <td>${u.role}</td>
+                <td>${u.verified ? "Yes" : "No"}</td>
+                <td>
+                  ${
+                    u.role === "admin"
+                      ? (u._id === currentUserId
+                          ? `<span style="color:#888">You</span>`
+                          : `<button class="warning"
+                              onclick="demoteAdmin('${u._id}', '${u.email}')">
+                              Demote
+                            </button>`
+                        )
+                      : `
+                        ${
+                          u.verified
+                            ? `<button class="success"
+                                onclick="makeAdmin('${u._id}', '${u.email}')">
+                                Make Admin
+                              </button>`
+                            : `<button class="success"
+                                onclick="verifyUser('${u._id}', '${u.email}')">
+                                Verify
+                              </button>`
+                        }
+                        <button class="danger"
+                          onclick="uiDeleteUser('${u._id}', '${u.email}')">
+                          Delete
+                        </button>
+                      `
+                  }
+                </td>
+              </tr>
+            `).join("")}
+          </table>
+        `;
+      }
+
+
+    function renderUserFilter() {
+      const roleFilter = document.getElementById("roleFilter").value;
+      const select = document.getElementById("userFilter");
+
+      select.innerHTML = `<option value="">-- Select a user --</option>`;
+
+      if (roleFilter !== "admin" && roleFilter !== "user") return;
+
+      const users = ALL_USERS.filter(u => u.role === roleFilter);
+
+      select.innerHTML += users
+        .map(u => `<option value="${u._id}">${u.email}</option>`)
+        .join("");
+
+      select.onchange = renderRecords;
+    }
+
+
+    async function renderRecords() {
+      const roleFilter = document.getElementById("roleFilter").value;
+      const uid = document.getElementById("userFilter").value;
+      const grid = document.getElementById("records");
+
+      if (roleFilter !== "admin" && roleFilter !== "user") {
+        grid.innerHTML = "<p>Select a user to view records</p>";
+        return;
+      }
+
+      if (!uid) {
+        grid.innerHTML = "<p>Select a user</p>";
+        return;
+      }
+
+      const userRecords = ALL_RECORDS.filter(r => r.user_id === uid);
+
+      if (!userRecords.length) {
+        grid.innerHTML = "<p>No records</p>";
+        return;
+      }
+
+      const cards = await Promise.all(userRecords.map(async r => {
+        const img = await fetchAdminImage(r.file_id);
+        return `
+          <div class="record-card">
+            <img src="${img}">
+            <div class="info">
+              <b>${r.filename}</b>
+              <p>${r.prediction} (${r.probability}%)</p>
+              <button onclick="uiDeleteRecord('${r._id}')">Delete</button>
+            </div>
+          </div>
+        `;
+      }));
+
+      grid.innerHTML = cards.join("");
+    }
+
+
+    document.getElementById("roleFilter").onchange = () => {
+      renderUsers();
+      renderUserFilter();
+      renderRecords();
+    };
+
+    loadAdmin();
+  </script>
+</body>
+</html>

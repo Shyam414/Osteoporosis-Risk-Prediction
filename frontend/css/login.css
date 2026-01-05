@@ -1,0 +1,127 @@
+/* ---------- Reset ---------- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ---------- Body ---------- */
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #4a90e2, #9013fe);
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ---------- Wrapper ---------- */
+.auth-wrapper {
+  width: 100%;
+  padding: 1rem;
+}
+
+/* ---------- Card ---------- */
+.auth-container {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  max-width: 400px;
+  margin: 0 auto;
+  width: 100%;
+  text-align: center;
+}
+
+.auth-container h2 {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  font-size: 0.95rem;
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+/* ---------- Form Elements ---------- */
+label {
+  display: block;
+  font-weight: 600;
+  text-align: left;
+  color: #444;
+  margin-bottom: 0.3rem;
+}
+
+input {
+  width: 100%;
+  padding: 0.7rem;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  outline: none;
+  transition: border 0.3s ease;
+}
+
+input:focus {
+  border-color: #4a90e2;
+}
+
+/* ---------- Button ---------- */
+button {
+  width: 100%;
+  padding: 0.8rem;
+  background: #4a90e2;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+button:hover {
+  background: #357abd;
+}
+
+/* ---------- Links ---------- */
+.links {
+  font-size: 0.9rem;
+  display: flex;                
+  justify-content: center;       
+  align-items: center;
+  gap: 0.5rem;                  
+  white-space: nowrap;
+}
+
+.links a {
+  color: #4a90e2;
+  text-decoration: none;
+}
+
+.links span {
+  color: #999;
+}
+
+.links a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 480px) {
+  .auth-container {
+    padding: 1.5rem;
+  }
+}
+
+/* ---------- Login Message ---------- */
+.login-message {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  text-align: center;
+  min-height: 18px;   
+}
+

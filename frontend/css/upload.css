@@ -1,0 +1,92 @@
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.container {
+  width: 90%;
+  max-width: 500px;
+  margin: 3rem auto;
+  text-align: center;
+}
+
+
+#navbar {
+  margin-bottom: 2rem;
+}
+
+
+/* Page title */
+h2 {
+  margin-bottom: 2rem;
+  color: #2c3e50;
+  font-size: 2rem;
+}
+
+/* Form styling */
+.upload-form {
+  background-color: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* File input */
+.upload-form input[type="file"] {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+
+/* Label styling */
+.file-label {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: block;
+  font-size: 1.1rem;
+}
+
+/* Button styling */
+.upload-btn {
+  background-color: #3498db;
+  color: #fff;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.upload-btn:hover {
+  background-color: #2980b9;
+  transform: translateY(-2px);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 500px) {
+  .container {
+    width: 95%;
+    margin: 2rem auto;
+  }
+}
+
+.upload-message {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  text-align: center;
+  min-height: 18px;
+}

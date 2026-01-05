@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload X-Ray</title>
+  <link rel="stylesheet" href="css/upload.css">
+  <script src="js/api.js" defer></script>
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <main class="container">
+    <h2>Upload Your Knee X-Ray</h2>
+
+    <form id="upload-form" class="upload-form">
+      <label for="file" class="file-label">Choose an X-Ray Image</label>
+      <input type="file" id="file" name="file" accept="image/*" required>
+
+      <button type="submit" class="upload-btn">Upload & Predict</button>
+
+      <!-- ✅ message here -->
+      <p id="upload-message" class="upload-message"></p>
+    </form>
+  </main>
+
+  <script type="module">
+    // Load navbar
+    const navbarHTML = await fetch('_navbar.html').then(r => r.text());
+    document.getElementById('navbar').innerHTML = navbarHTML;
+
+    // Logout
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('access_token');
+        window.location.href = 'index.html';
+      });
+    }
+
+    const form = document.getElementById('upload-form');
+    const messageEl = document.getElementById('upload-message');
+    const button = form.querySelector('button');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      messageEl.textContent = "";
+      messageEl.style.color = "red";
+
+      const file = form.file.files[0];
+      if (!file) {
+        messageEl.textContent = "Please select an image file";
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "Uploading...";
+
+      try {
+        const res = await uploadFile(file);
+
+        if (res.prediction) {
+          messageEl.style.color = "green";
+          messageEl.textContent = "Upload successful. Redirecting...";
+          setTimeout(() => {
+            window.location.href = `result.html?file_id=${res.file_id}`;
+          }, 800);
+          return;
+        }
+
+        messageEl.textContent = res.msg || "Upload failed";
+
+      } catch (err) {
+        // token expired / unauthorized / server error
+        messageEl.textContent = err.message || "Upload failed";
+
+        if (err.message.includes("token")) {
+          setTimeout(() => {
+            window.location.href = "login.html";
+          }, 1200);
+        }
+      } finally {
+        button.disabled = false;
+        button.textContent = "Upload & Predict";
+      }
+    });
+  </script>
+</body>
+</html>
