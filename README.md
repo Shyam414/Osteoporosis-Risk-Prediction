@@ -1,6 +1,5 @@
-# 🦴 Osteoporosis Risk Prediction System
+#  Osteoporosis Risk Prediction System
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/Shyam414/Osteoporosis-Risk-Prediction/issues)
 
@@ -302,9 +301,6 @@ Contributions are welcome! Here's how you can help:
 
 **This tool is for educational and research purposes only.** It should not be used as a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of qualified healthcare providers with any questions regarding medical conditions.
 
-##  License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ##  Acknowledgments
 
