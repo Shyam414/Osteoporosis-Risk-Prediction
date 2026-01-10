@@ -26,6 +26,13 @@
   </main>
 
   <script type="module">
+    const token = localStorage.getItem("access_token");
+
+    // AUTH GUARD
+    if (!token) {
+      window.location.href = "login.html";
+    }
+
     const messageEl = document.getElementById("result-message");
 
     async function initPage() {

@@ -19,12 +19,19 @@
 
       <button type="submit" class="upload-btn">Upload & Predict</button>
 
-      <!-- ✅ message here -->
+      <!-- message here -->
       <p id="upload-message" class="upload-message"></p>
     </form>
   </main>
 
   <script type="module">
+    const token = localStorage.getItem("access_token");
+
+    // AUTH GUARD
+    if (!token) {
+      window.location.href = "login.html";
+    }
+
     // Load navbar
     const navbarHTML = await fetch('_navbar.html').then(r => r.text());
     document.getElementById('navbar').innerHTML = navbarHTML;
