@@ -51,8 +51,8 @@ def create_app():
         app,
         resources={r"/*": {"origins": [
             "http://127.0.0.1:5500",
-            #"http://10.14.13.104:5000"
-            #"http://10.14.15.127:5500",  
+            "http://localhost:5500",
+            "https://osteoporosis-risk-prediction-frontend.onrender.com",  
         ]}},
         supports_credentials=True
     )
