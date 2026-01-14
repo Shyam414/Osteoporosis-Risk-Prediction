@@ -1,5 +1,6 @@
 # routes/auth.py
 import re
+import os
 from flask import Blueprint, request, jsonify, current_app, redirect
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Message
@@ -12,6 +13,8 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 def get_serializer():
     return URLSafeTimedSerializer(current_app.secret_key)
 
+def frontend_url():
+    return current_app.config["FRONTEND_URL"]
 
 # REGISTER
 @auth_bp.route("/register", methods=["POST"])
@@ -64,7 +67,7 @@ def confirm_email(token):
         return "Invalid verification link", 400
 
     mongo.db.users.update_one({"email": email}, {"$set": {"verified": True}})
-    return redirect("http://127.0.0.1:5500/login.html")
+    return redirect(f"{frontend_url()}/login.html")
 
 
 # LOGIN
@@ -108,7 +111,7 @@ def forgot_password():
     try:
         s = get_serializer()
         token = s.dumps(email, salt="reset-password")
-        link = f"http://127.0.0.1:5500/reset_password.html?token={token}"
+        link = f"{frontend_url()}/reset_password.html?token={token}"
 
         msg = Message("Reset your password", recipients=[email])
         msg.body = f"Reset your password:\n{link}\n\nExpires in 30 minutes."

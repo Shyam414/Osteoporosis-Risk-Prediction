@@ -41,19 +41,26 @@ def create_app():
         MAIL_DEFAULT_SENDER=os.getenv("MAIL_DEFAULT_SENDER", os.getenv("MAIL_USERNAME"))
     )
 
+    app.config["FRONTEND_URL"] = os.getenv(
+        "FRONTEND_URL",
+        "http://127.0.0.1:5500"
+    )
+
     # Init extensions
     mongo.init_app(app)
     mail.init_app(app)
     limiter.init_app(app)
     jwt.init_app(app)
-    
+
+    allowed_origins = [
+        app.config["FRONTEND_URL"],
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+    ]
+
     CORS(
         app,
-        resources={r"/*": {"origins": [
-            "http://127.0.0.1:5500",
-            "http://localhost:5500",
-            "https://osteoporosis-risk-prediction-frontend.onrender.com",  
-        ]}},
+        resources={r"/*": {"origins": allowed_origins}},
         supports_credentials=True
     )
 
