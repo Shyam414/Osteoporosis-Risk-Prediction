@@ -1,6 +1,6 @@
 # routes/auth.py
 import re
-import os
+from threading import Thread
 from flask import Blueprint, request, jsonify, current_app, redirect
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Message
@@ -9,6 +9,13 @@ from flask_jwt_extended import create_access_token, create_refresh_token, jwt_re
 from run import mongo, mail, limiter
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
+
+def send_async_email(app, msg):
+    with app.app_context():
+        try:
+            mail.send(msg)
+        except Exception:
+            app.logger.exception("Background mail send failed")
 
 def get_serializer():
     return URLSafeTimedSerializer(current_app.secret_key)
@@ -41,19 +48,18 @@ def register():
     })
 
     # send verification email
-    try:
-        s = get_serializer()
-        token = s.dumps(email, salt="email-confirm")
-        link = f"{request.host_url}auth/confirm/{token}"
+    s = get_serializer()
+    token = s.dumps(email, salt="email-confirm")
+    link = f"{request.host_url}auth/confirm/{token}"
 
-        msg = Message("Confirm your account", recipients=[email])
-        msg.body = f"Click to verify your account:\n{link}\n\nLink valid for 1 hour."
-        mail.send(msg)
-    except Exception:
-        current_app.logger.exception("Mail send failed")
+    msg = Message("Confirm your account", recipients=[email])
+    msg.body = f"Click to verify your account:\n{link}\n\nLink valid for 1 hour."
+    
+    # 3. Use Thread instead of mail.send(msg)
+    app = current_app._get_current_object()
+    Thread(target=send_async_email, args=(app, msg)).start()
 
     return jsonify({"msg": "Registered. Please check your email to verify."}), 201
-
 
 # EMAIL CONFIRM
 @auth_bp.route("/confirm/<token>")
@@ -108,20 +114,18 @@ def forgot_password():
     if not user:
         return jsonify({"msg": "Email not registered"}), 404
 
-    try:
-        s = get_serializer()
-        token = s.dumps(email, salt="reset-password")
-        link = f"{frontend_url()}/reset_password.html?token={token}"
+    s = get_serializer()
+    token = s.dumps(email, salt="reset-password")
+    link = f"{frontend_url()}/reset_password.html?token={token}"
 
-        msg = Message("Reset your password", recipients=[email])
-        msg.body = f"Reset your password:\n{link}\n\nExpires in 30 minutes."
-        mail.send(msg)
+    msg = Message("Reset your password", recipients=[email])
+    msg.body = f"Reset your password:\n{link}\n\nExpires in 30 minutes."
+    
+    # 4. Use Thread here as well
+    app = current_app._get_current_object()
+    Thread(target=send_async_email, args=(app, msg)).start()
 
-        return jsonify({"msg": "Password reset link sent"}), 200
-    except Exception:
-        current_app.logger.exception("Reset mail failed")
-        return jsonify({"msg": "Could not send reset email"}), 500
-
+    return jsonify({"msg": "Password reset link sent"}), 200
 
 # RESET PASSWORD
 @auth_bp.route("/reset-password", methods=["POST"])
