@@ -35,11 +35,40 @@ def register():
     mongo.db.users.insert_one({
         "email": email,
         "password": hashed,
-        "verified": True, 
+        "verified": False,
         "role": "user"   
     })
 
-    return jsonify({"msg": "Registration successful! You can now log in."}), 201
+    # send verification email
+    try:
+        s = get_serializer()
+        token = s.dumps(email, salt="email-confirm")
+        link = f"{request.host_url}auth/confirm/{token}"
+
+        msg = Message("Confirm your account", recipients=[email])
+        msg.body = f"Click to verify your account:\n{link}\n\nLink valid for 1 hour."
+        mail.send(msg)
+    except Exception:
+        current_app.logger.exception("Mail send failed")
+
+    return jsonify({"msg": "Registered. Please check your email to verify."}), 201
+
+
+# EMAIL CONFIRM
+@auth_bp.route("/confirm/<token>")
+def confirm_email(token):
+    s = get_serializer()
+    try:
+        email = s.loads(token, salt="email-confirm", max_age=3600)
+    except SignatureExpired:
+        return "Verification link expired", 400
+    except BadSignature:
+        return "Invalid verification link", 400
+
+    mongo.db.users.update_one({"email": email}, {"$set": {"verified": True}})
+    return redirect(f"{frontend_url()}/login.html")
+
+
 # LOGIN
 @auth_bp.route("/login", methods=["POST"])
 @limiter.limit("10 per minute")
@@ -78,14 +107,20 @@ def forgot_password():
     if not user:
         return jsonify({"msg": "Email not registered"}), 404
 
-    s = get_serializer()
-    token = s.dumps(email, salt="reset-password")
-    
-    return jsonify({
-        "msg": "Password reset token generated",
-        "token": token,
-        "debug_note": "Email sending is disabled. Use this token to reset password."
-    }), 200
+    try:
+        s = get_serializer()
+        token = s.dumps(email, salt="reset-password")
+        link = f"{frontend_url()}/reset_password.html?token={token}"
+
+        msg = Message("Reset your password", recipients=[email])
+        msg.body = f"Reset your password:\n{link}\n\nExpires in 30 minutes."
+        mail.send(msg)
+
+        return jsonify({"msg": "Password reset link sent"}), 200
+    except Exception:
+        current_app.logger.exception("Reset mail failed")
+        return jsonify({"msg": "Could not send reset email"}), 500
+
 
 # RESET PASSWORD
 @auth_bp.route("/reset-password", methods=["POST"])
