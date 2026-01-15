@@ -34,12 +34,12 @@ def create_app():
     # Mail Config
     app.config.update(
         MAIL_SERVER=os.getenv("MAIL_SERVER", "smtp.gmail.com"),
-        MAIL_PORT=int(os.getenv("MAIL_PORT", 465)),
-        MAIL_USE_TLS=os.getenv("MAIL_USE_TLS", "False").lower() == "true",
-        MAIL_USE_SSL=os.getenv("MAIL_USE_SSL", "True").lower() == "true",  # Add this!
+        MAIL_PORT=465,
+        MAIL_USE_TLS=False,
+        MAIL_USE_SSL=True, # MUST be True
         MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
         MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
-        MAIL_DEFAULT_SENDER=os.getenv("MAIL_DEFAULT_SENDER", os.getenv("MAIL_USERNAME"))
+        MAIL_DEFAULT_SENDER=os.getenv("MAIL_DEFAULT_SENDER")
     )
 
     app.config["FRONTEND_URL"] = os.getenv(
