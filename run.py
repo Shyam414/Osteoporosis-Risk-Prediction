@@ -23,6 +23,7 @@ def create_app():
 
     # Environment configs
     app.config["MONGO_URI"] = os.getenv("MONGO_URI")
+    app.config["ADMIN_EMAIL"] = os.getenv("ADMIN_EMAIL")
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "supersecretjwt")
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = 900    #15    
     app.config["JWT_REFRESH_TOKEN_EXPIRES"] = 604800   #7days 

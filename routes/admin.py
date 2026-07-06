@@ -2,9 +2,9 @@
 from flask import Blueprint, jsonify
 from run import mongo
 from bson import ObjectId
-from utils.admin_required import admin_required
+from utils.validators import admin, current_user_id
+from utils.db_helpers import get_user_by_id, get_record_by_id, user_error_response,record_error_response
 import gridfs
-from flask_jwt_extended import get_jwt_identity
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 fs = gridfs.GridFS(mongo.db)
@@ -12,7 +12,7 @@ fs = gridfs.GridFS(mongo.db)
 
 # ADMIN STATS
 @admin_bp.route("/stats", methods=["GET"])
-@admin_required
+@admin
 def admin_stats():
     return jsonify({
         "total_users": mongo.db.users.count_documents({}),
@@ -23,7 +23,7 @@ def admin_stats():
 
 # GET ALL USERS
 @admin_bp.route("/users", methods=["GET"])
-@admin_required
+@admin
 def all_users():
     users = []
     for u in mongo.db.users.find({}, {"password": 0}):
@@ -35,7 +35,7 @@ def all_users():
 
 # GET ALL RECORDS
 @admin_bp.route("/records", methods=["GET"])
-@admin_required
+@admin
 def all_records():
     records = []
     for r in mongo.db.records.find().sort("uploaded_at", -1):
@@ -47,18 +47,13 @@ def all_records():
 
 # DELETE ANY RECORD
 @admin_bp.route("/records/<record_id>", methods=["DELETE"])
-@admin_required
+@admin
 def delete_record(record_id):
-    try:
-        record_oid = ObjectId(record_id)
-    except Exception:
-        return jsonify({"msg": "Invalid record ID"}), 400
+    record, record_oid, error = get_record_by_id(record_id)
 
-    record = mongo.db.records.find_one({"_id": record_oid})
-    if not record:
-        return jsonify({"msg": "Record not found"}), 404
+    if error:
+        return record_error_response(error)
 
-    # delete file from GridFS
     if "file_id" in record:
         try:
             fs.delete(ObjectId(record["file_id"]))
@@ -66,21 +61,18 @@ def delete_record(record_id):
             pass
 
     mongo.db.records.delete_one({"_id": record_oid})
+
     return jsonify({"msg": "Record deleted successfully"}), 200
 
 
 # DELETE USER + ALL RECORDS + ALL FILES
 @admin_bp.route("/users/<user_id>", methods=["DELETE"])
-@admin_required
+@admin
 def delete_user(user_id):
-    try:
-        user_oid = ObjectId(user_id)
-    except Exception:
-        return jsonify({"msg": "Invalid user ID"}), 400
+    user, user_oid, error = get_user_by_id(user_id)
 
-    user = mongo.db.users.find_one({"_id": user_oid})
-    if not user:
-        return jsonify({"msg": "User not found"}), 404
+    if error:
+        return user_error_response(error)
 
     # SAFETY: prevent deleting admin users
     if user.get("role") == "admin":
@@ -110,16 +102,12 @@ def delete_user(user_id):
 
 # VERIFY USER (ADMIN)
 @admin_bp.route("/users/<user_id>/verify", methods=["POST"])
-@admin_required
+@admin
 def verify_user(user_id):
-    try:
-        user_oid = ObjectId(user_id)
-    except Exception:
-        return jsonify({"msg": "Invalid user ID"}), 400
+    user, user_oid, error = get_user_by_id(user_id)
 
-    user = mongo.db.users.find_one({"_id": user_oid})
-    if not user:
-        return jsonify({"msg": "User not found"}), 404
+    if error:
+        return user_error_response(error)
 
     if user.get("verified", False):
         return jsonify({"msg": "User already verified"}), 400
@@ -134,16 +122,12 @@ def verify_user(user_id):
 
 # PROMOTE USER TO ADMIN
 @admin_bp.route("/users/<user_id>/promote", methods=["POST"])
-@admin_required
+@admin
 def promote_user(user_id):
-    try:
-        user_oid = ObjectId(user_id)
-    except Exception:
-        return jsonify({"msg": "Invalid user ID"}), 400
+    user, user_oid, error = get_user_by_id(user_id)
 
-    user = mongo.db.users.find_one({"_id": user_oid})
-    if not user:
-        return jsonify({"msg": "User not found"}), 404
+    if error:
+        return user_error_response(error)
 
     if not user.get("verified", False):
         return jsonify({"msg": "User must be verified first"}), 403
@@ -161,22 +145,18 @@ def promote_user(user_id):
 
 
 @admin_bp.route("/users/<user_id>/demote", methods=["POST"])
-@admin_required
+@admin
 def demote_user(user_id):
-    try:
-        user_oid = ObjectId(user_id)
-    except Exception:
-        return jsonify({"msg": "Invalid user ID"}), 400
+    user, user_oid, error = get_user_by_id(user_id)
 
-    user = mongo.db.users.find_one({"_id": user_oid})
-    if not user:
-        return jsonify({"msg": "User not found"}), 404
+    if error:
+        return user_error_response(error)
 
     if user.get("role") != "admin":
         return jsonify({"msg": "User is not an admin"}), 400
 
     # prevent self-demotion
-    if str(user_oid) == get_jwt_identity():
+    if str(user_oid) == current_user_id():
         return jsonify({"msg": "You cannot demote yourself"}), 403
 
     admin_count = mongo.db.users.count_documents({"role": "admin"})

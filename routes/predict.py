@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, send_file
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from utils.validators import login as login_required, current_user_id
 from run import mongo
 from gridfs import GridFS
 from bson import ObjectId
@@ -20,9 +20,9 @@ def allowed_file(filename):
 @predict_bp.route("/upload", methods=["POST"])
 @predict_bp.route("", methods=["POST"])
 @predict_bp.route("/", methods=["POST"])
-@jwt_required()
+@login_required
 def upload_file():
-    user_id = get_jwt_identity()
+    user_id = current_user_id()
 
     if "file" not in request.files:
         return jsonify({"msg": "No file uploaded"}), 400
@@ -39,12 +39,16 @@ def upload_file():
     file_id = fs.put(file_bytes, filename=file.filename, user_id=user_id, content_type=file.content_type)
 
     # Temporary save for ML prediction
-    temp_path = os.path.join("temp_" + file.filename)
-    with open(temp_path, "wb") as f:
-        f.write(file_bytes)
+    temp_path = f"temp_{file.filename}"
 
-    prediction = predict_image(temp_path)
-    os.remove(temp_path)
+    try:
+        with open(temp_path, "wb") as f:
+            f.write(file_bytes)
+
+        prediction = predict_image(temp_path)
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
     record = {
         "user_id": user_id,
@@ -61,23 +65,28 @@ def upload_file():
 
 # Retrieve File
 @predict_bp.route("/file/<file_id>", methods=["GET"])
-@jwt_required()
+@login_required
 def get_file(file_id):
     try:
         file = fs.get(ObjectId(file_id))
     except Exception:
         return jsonify({"msg": "File not found"}), 404
-    return send_file(io.BytesIO(file.read()), mimetype=file.content_type)
+    response = send_file(
+        io.BytesIO(file.read()),
+        mimetype=file.content_type,
+        max_age=86400  # 1 day
+    )
+
+    response.headers["Cache-Control"] = "public, max-age=86400"
+
+    return response
 
 
 # Retrieve File Metadata for Browser
-@predict_bp.route("/file/<file_id>/meta", methods=["GET", "OPTIONS"])
-@jwt_required(optional=True)  # allow OPTIONS without JWT
+@predict_bp.route("/file/<file_id>/meta", methods=["GET"])
+@login_required
 def get_file_meta(file_id):
-    if request.method == "OPTIONS":
-        return "", 200  # respond to preflight
-
-    user_id = get_jwt_identity()
+    user_id = current_user_id()
     if not user_id:
         return jsonify({"msg": "Missing or invalid token"}), 401
 
@@ -85,10 +94,14 @@ def get_file_meta(file_id):
     if not record:
         return jsonify({"msg": "Record not found"}), 404
 
-    return jsonify({
+    response = jsonify({
         "filename": record["filename"],
         "prediction": record["prediction"],
         "probability": record["probability"]
-    }), 200
+    })
+
+    response.headers["Cache-Control"] = "private, max-age=3600"  # 1 hour
+
+    return response, 200
 
 

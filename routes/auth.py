@@ -1,11 +1,24 @@
 # routes/auth.py
 import re
-from flask import Blueprint, request, jsonify, current_app, redirect
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask import Blueprint, current_app, jsonify, redirect, request
+from flask_jwt_extended import (
+    create_access_token,
+    create_refresh_token,
+    get_jwt_identity,
+)
+from itsdangerous import (
+    BadSignature,
+    SignatureExpired,
+    URLSafeTimedSerializer,
+)
+from werkzeug.security import check_password_hash, generate_password_hash
+from run import limiter, mongo, mail
 from flask_mail import Message
-from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
-from run import mongo, mail, limiter
+from utils.validators import (
+    login as login_required,
+    refresh_login,
+)
+
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -18,8 +31,9 @@ def frontend_url():
 # REGISTER
 @auth_bp.route("/register", methods=["POST"])
 def register():
-    email = request.json.get("email", "").strip().lower()
-    password = request.json.get("password", "").strip()
+    data = request.get_json() or {}
+    email = data.get("email", "").strip().lower()
+    password = data.get("password", "").strip()
 
     if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
         return jsonify({"msg": "Invalid email"}), 400
@@ -73,8 +87,9 @@ def confirm_email(token):
 @auth_bp.route("/login", methods=["POST"])
 @limiter.limit("10 per minute")
 def login():
-    email = request.json.get("email", "").strip().lower()
-    password = request.json.get("password", "").strip()
+    data = request.get_json() or {}
+    email = data.get("email", "").strip().lower()
+    password = data.get("password", "").strip()
 
     user = mongo.db.users.find_one({"email": email},{"password": 1, "verified": 1, "role": 1})
 
@@ -99,7 +114,8 @@ def login():
 # FORGOT PASSWORD
 @auth_bp.route("/forgot-password", methods=["POST"])
 def forgot_password():
-    email = request.get_json().get("email", "").strip().lower()
+    data = request.get_json() or {}
+    email = data.get("email", "").strip().lower()
     if not email:
         return jsonify({"msg": "Email is required"}), 400
 
@@ -125,7 +141,7 @@ def forgot_password():
 # RESET PASSWORD
 @auth_bp.route("/reset-password", methods=["POST"])
 def reset_password():
-    data = request.get_json()
+    data = request.get_json() or {}
     token = data.get("token")
     new_pw = data.get("password", "").strip()
 
@@ -155,7 +171,7 @@ def reset_password():
 
 # REFRESH TOKEN
 @auth_bp.route("/refresh", methods=["POST"])
-@jwt_required(refresh=True)
+@refresh_login
 def refresh():
     user_id = get_jwt_identity()
     return jsonify({
@@ -165,6 +181,6 @@ def refresh():
 
 # LOGOUT
 @auth_bp.route("/logout", methods=["POST"])
-@jwt_required()
+@login_required
 def logout():
     return jsonify({"msg": "Logged out"}), 200
