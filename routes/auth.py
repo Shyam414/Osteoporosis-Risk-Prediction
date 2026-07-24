@@ -11,7 +11,7 @@ from itsdangerous import (
     SignatureExpired,
     URLSafeTimedSerializer,
 )
-from werkzeug.security import check_password_hash, generate_password_hash
+from utils.security import check_password_hash, generate_password_hash
 from run import limiter, mongo, mail
 from flask_mail import Message
 from utils.validators import (
