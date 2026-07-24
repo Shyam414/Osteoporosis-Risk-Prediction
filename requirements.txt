@@ -6,6 +6,8 @@ flask-mail
 flask-limiter
 flask-jwt-extended
 flask-cors
+flask_redis
+boto3
 gunicorn
 
 # Database

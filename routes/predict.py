@@ -1,107 +1,120 @@
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify
 from utils.validators import login as login_required, current_user_id
 from run import mongo
-from gridfs import GridFS
-from bson import ObjectId
 from datetime import datetime
-import os, io
-from services.ml_service import predict_image  
+from services.ml_service import predict_image
+from services.s3_service import (
+    upload_file_to_s3,
+    download_file_from_s3,
+    generate_presigned_url,
+)
+import uuid
+import os
 
 predict_bp = Blueprint("predict", __name__, url_prefix="/predict")
-fs = GridFS(mongo.db)
 
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png"}
 
+
 def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+    return (
+        "." in filename
+        and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+    )
 
 
-#Upload & Predict
+# ---------------------------------------------------
+# Upload & Predict
+# ---------------------------------------------------
 @predict_bp.route("/upload", methods=["POST"])
 @predict_bp.route("", methods=["POST"])
 @predict_bp.route("/", methods=["POST"])
 @login_required
 def upload_file():
+
     user_id = current_user_id()
 
     if "file" not in request.files:
         return jsonify({"msg": "No file uploaded"}), 400
 
     file = request.files["file"]
+
     if file.filename == "":
         return jsonify({"msg": "No selected file"}), 400
+
     if not allowed_file(file.filename):
         return jsonify({"msg": "Invalid file type"}), 400
 
-    file_bytes = file.read()
+    job_id = str(uuid.uuid4())
 
-    # Save file in GridFS
-    file_id = fs.put(file_bytes, filename=file.filename, user_id=user_id, content_type=file.content_type)
+    image_key = f"users/{user_id}/{job_id}_{file.filename}"
 
-    # Temporary save for ML prediction
-    temp_path = f"temp_{file.filename}"
+    # Upload to S3
+    upload_file_to_s3(file, image_key)
+
+    temp_file = f"temp_{job_id}.jpg"
 
     try:
-        with open(temp_path, "wb") as f:
-            f.write(file_bytes)
 
-        prediction = predict_image(temp_path)
+        # Download from S3
+        download_file_from_s3(image_key, temp_file)
+
+        # Predict
+        prediction = predict_image(temp_file)
+
     finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
 
     record = {
+
+        "job_id": job_id,
+
         "user_id": user_id,
+
         "filename": file.filename,
+
+        "image_key": image_key,
+
         "prediction": prediction["pred_label"],
+
         "probability": prediction["pred_prob"],
-        "file_id": str(file_id),
+
+        "status": "completed",
+
         "uploaded_at": datetime.utcnow()
+
     }
+
     mongo.db.records.insert_one(record)
+
+    record["image_url"] = generate_presigned_url(image_key)
 
     return jsonify(record), 201
 
 
-# Retrieve File
-@predict_bp.route("/file/<file_id>", methods=["GET"])
+# ---------------------------------------------------
+# Get Prediction
+# ---------------------------------------------------
+@predict_bp.route("/result/<job_id>", methods=["GET"])
 @login_required
-def get_file(file_id):
-    try:
-        file = fs.get(ObjectId(file_id))
-    except Exception:
-        return jsonify({"msg": "File not found"}), 404
-    response = send_file(
-        io.BytesIO(file.read()),
-        mimetype=file.content_type,
-        max_age=86400  # 1 day
-    )
+def get_prediction(job_id):
 
-    response.headers["Cache-Control"] = "public, max-age=86400"
-
-    return response
-
-
-# Retrieve File Metadata for Browser
-@predict_bp.route("/file/<file_id>/meta", methods=["GET"])
-@login_required
-def get_file_meta(file_id):
     user_id = current_user_id()
-    if not user_id:
-        return jsonify({"msg": "Missing or invalid token"}), 401
 
-    record = mongo.db.records.find_one({"file_id": file_id, "user_id": user_id})
-    if not record:
-        return jsonify({"msg": "Record not found"}), 404
-
-    response = jsonify({
-        "filename": record["filename"],
-        "prediction": record["prediction"],
-        "probability": record["probability"]
+    record = mongo.db.records.find_one({
+        "job_id": job_id,
+        "user_id": user_id
     })
 
-    response.headers["Cache-Control"] = "private, max-age=3600"  # 1 hour
+    if not record:
+        return jsonify({"msg": "Prediction not found"}), 404
 
-    return response, 200
+    record["_id"] = str(record["_id"])
 
+    record["image_url"] = generate_presigned_url(
+        record["image_key"]
+    )
 
+    return jsonify(record), 200

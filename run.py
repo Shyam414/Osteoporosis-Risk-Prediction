@@ -6,14 +6,16 @@ from flask_mail import Mail
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_jwt_extended import JWTManager
+from flask_redis import FlaskRedis
 from flask_cors import CORS  
 
 load_dotenv()
 
 mongo = PyMongo()
 mail = Mail()
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=get_remote_address,storage_uri=os.getenv("REDIS_URL"))
 jwt = JWTManager()
+redis_client = FlaskRedis()
 
 def create_app():
     app = Flask(__name__)
@@ -29,6 +31,13 @@ def create_app():
     app.config["JWT_REFRESH_TOKEN_EXPIRES"] = 604800   #7days 
     app.config["UPLOAD_FOLDER"] = "uploads"
 
+    app.config["REDIS_URL"] = os.getenv("REDIS_URL")
+    app.config["AWS_ACCESS_KEY_ID"] = os.getenv("AWS_ACCESS_KEY_ID")
+    app.config["AWS_SECRET_ACCESS_KEY"] = os.getenv("AWS_SECRET_ACCESS_KEY")
+    app.config["AWS_REGION"] = os.getenv("AWS_REGION")
+    app.config["S3_BUCKET_NAME"] = os.getenv("S3_BUCKET_NAME")
+
+
     if not app.config["MONGO_URI"]:
         raise ValueError("MONGO_URI missing in .env")
 
@@ -42,21 +51,17 @@ def create_app():
         MAIL_DEFAULT_SENDER=os.getenv("MAIL_DEFAULT_SENDER", os.getenv("MAIL_USERNAME"))
     )
 
-    app.config["FRONTEND_URL"] = os.getenv(
-        "FRONTEND_URL",
-        "http://127.0.0.1:5500"
-    )
+    app.config["FRONTEND_URL"] = os.getenv("FRONTEND_URL")
 
     # Init extensions
     mongo.init_app(app)
     mail.init_app(app)
     limiter.init_app(app)
     jwt.init_app(app)
+    redis_client.init_app(app)
 
     allowed_origins = [
         app.config["FRONTEND_URL"],
-        "http://localhost:5500",
-        "http://127.0.0.1:5500",
     ]
 
     CORS(
@@ -82,5 +87,6 @@ def create_app():
     @app.route("/")
     def home():
         return {"msg": "API is running. Use /auth/login to authenticate."}
+
 
     return app

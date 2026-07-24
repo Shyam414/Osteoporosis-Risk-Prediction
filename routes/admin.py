@@ -1,13 +1,11 @@
 #admin.py
 from flask import Blueprint, jsonify
 from run import mongo
-from bson import ObjectId
+from services.s3_service import delete_file_from_s3, generate_presigned_url
 from utils.validators import admin, current_user_id
 from utils.db_helpers import get_user_by_id, get_record_by_id, user_error_response,record_error_response
-import gridfs
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
-fs = gridfs.GridFS(mongo.db)
 
 
 # ADMIN STATS
@@ -40,6 +38,8 @@ def all_records():
     records = []
     for r in mongo.db.records.find().sort("uploaded_at", -1):
         r["_id"] = str(r["_id"])
+        if "image_key" in r:
+            r["image_url"] = generate_presigned_url(r["image_key"])
         records.append(r)
 
     return jsonify(records), 200
@@ -54,9 +54,9 @@ def delete_record(record_id):
     if error:
         return record_error_response(error)
 
-    if "file_id" in record:
+    if "image_key" in record:
         try:
-            fs.delete(ObjectId(record["file_id"]))
+            delete_file_from_s3(record["image_key"])
         except Exception:
             pass
 
@@ -83,9 +83,9 @@ def delete_user(user_id):
 
     # 2️ Delete all files from GridFS
     for r in records:
-        if "file_id" in r:
+        if "image_key" in r:
             try:
-                fs.delete(ObjectId(r["file_id"]))
+                delete_file_from_s3(r["image_key"])
             except Exception:
                 pass
 

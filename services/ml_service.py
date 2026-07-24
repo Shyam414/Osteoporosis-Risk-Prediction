@@ -65,10 +65,12 @@ infer_tf = transforms.Compose([
 
 idx_to_label = {0: "Negative", 1: "Positive"}
 
-
 @torch.inference_mode()
 def predict_image(image_path):
-    model, device = load_model()
+    
+    global model, device
+    if model is None:
+        model, device = load_model()
 
     img = Image.open(image_path).convert("RGB")
     x = infer_tf(img).unsqueeze(0).to(device)

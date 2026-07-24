@@ -1,19 +1,19 @@
 # validators.py
 
 from functools import wraps
-
 from bson import ObjectId
 from flask import g, jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required
-
-from run import mongo
-
+from run import mongo, redis_client
 
 def login(f):
     @wraps(f)
     @jwt_required()
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
+        session = redis_client.get(f"session:{user_id}")
+        if not session:
+            return jsonify({"msg": "Session expired. Please login again."}), 401
 
         try:
             user_oid = ObjectId(user_id)
@@ -48,6 +48,10 @@ def optional_login(f):
     @jwt_required(optional=True)
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
+        if user_id:
+            session = redis_client.get(f"session:{user_id}")
+            if not session:
+                user_id = None
 
         g.current_user = None
         g.current_user_id = None
