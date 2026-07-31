@@ -1,359 +1,291 @@
-#  Osteoporosis Risk Prediction System
+# Osteoporosis Risk Prediction API
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/Shyam414/Osteoporosis-Risk-Prediction/issues)
+A Flask backend for user authentication, medical image upload, and osteoporosis risk prediction using a ResNet50-based PyTorch model.
 
-A machine learning-powered web application that predicts osteoporosis risk using clinical and X-Ray data. This system provides an accessible screening tool that can help identify individuals at risk of osteoporosis without requiring specialized equipment like DXA scans.
+The API stores user accounts and prediction records in MongoDB, uses Redis-backed sessions for JWT login, uploads images to Amazon S3, downloads the trained model from Google Drive when needed, and returns a positive/negative osteoporosis prediction with a confidence percentage.
 
-##  Table of Contents
+> Medical disclaimer: this project is for educational and research use only. It is not a substitute for professional medical advice, diagnosis, or treatment.
 
-- [Overview](#overview)
-- [Features](#features)
-- [Technology Stack](#technology-stack)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Model Information](#model-information)
-- [Project Structure](#project-structure)
-- [Contributing](#contributing)
-- [License](#license)
-- [Contact](#contact)
+## Features
 
-##  Overview
+- User registration with email verification
+- JWT login, refresh, and logout
+- Password reset by email
+- Redis-backed session validation and login rate limiting
+- Image upload for prediction (`jpg`, `jpeg`, `png`)
+- S3 image storage with temporary pre-signed URLs
+- PyTorch ResNet50 inference
+- User dashboard with prediction history
+- Admin endpoints for users, records, statistics, verification, promotion, and deletion
+- Vercel and WSGI entry points
 
-Osteoporosis is a metabolic bone condition affecting approximately 18% of the global population, leading to weakened bones and increased fracture risk. Early detection is crucial for effective management, but access to gold-standard diagnostic tools like Dual-energy X-ray Absorptiometry (DXA) is often limited.
+## Tech Stack
 
-This project leverages **deep learning with ResNet50** to predict osteoporosis risk directly from medical images (X-rays, DXA scans, or bone density images). By analyzing bone structure and density patterns in images, the model provides accurate risk assessments without requiring manual input of clinical parameters, making screening more accessible and efficient.
+- Python
+- Flask
+- Flask-PyMongo / MongoDB
+- Flask-JWT-Extended
+- Flask-Mail
+- Flask-Redis
+- Flask-Limiter
+- Flask-CORS
+- boto3 / Amazon S3
+- PyTorch, torchvision, Pillow
+- gdown for Google Drive model download
 
-###  Key Objectives
+## Project Structure
 
-- Provide an accurate, automated osteoporosis risk screening tool from medical images
-- Utilize deep learning for bone structure and density analysis
-- Eliminate the need for manual clinical parameter input
-- Offer interpretable predictions to support clinical decision-making
-- Make early detection accessible through image-based analysis
+```text
+Osteoporosis-Risk-Prediction/
+|-- app.py                    # Flask app entry point for local run/Vercel
+|-- run.py                    # App factory, extension setup, config, blueprints
+|-- wsgi.py                   # WSGI entry point
+|-- requirements.txt          # Python dependencies
+|-- vercel.json               # Vercel deployment config
+|-- routes/
+|   |-- auth.py               # Register, login, email verification, password reset
+|   |-- predict.py            # Image upload and prediction result endpoints
+|   |-- dashboard.py          # User prediction history
+|   |-- admin.py              # Admin user/record management
+|   `-- admin_bootstrap.py    # First admin bootstrap endpoint
+|-- services/
+|   |-- ml_service.py         # Model download, load, preprocessing, prediction
+|   `-- s3_service.py         # S3 upload, download, delete, pre-signed URLs
+`-- utils/
+    |-- db_helpers.py         # Mongo ObjectId lookup helpers
+    |-- security.py           # Password hashing wrappers
+    `-- validators.py         # JWT/session/admin decorators and user helpers
+```
 
-##  Features
+## Requirements
 
-- **🖼️ Image-Based Prediction**: Upload medical images (X-rays, DXA scans) for instant analysis
-- **🤖 Deep Learning-Powered**: ResNet50 pre-trained model with transfer learning for accurate predictions
-- **🔬 Research-Grade ML**: Currently undergoing active machine learning research to enhance model performance
-- **📊 Risk Assessment**: Provides probability scores and risk categorization from image analysis
-- **💻 User-Friendly Interface**: Simple drag-and-drop or browse to upload medical images
-- **⚡ Real-Time Results**: Instant risk assessment upon image upload
-- **📱 Responsive Design**: Works seamlessly across desktop, tablet, and mobile devices
-- **🔒 Privacy-Focused**: No data storage; images processed locally and discarded after prediction
-- **🧠 Transfer Learning**: Leverages pre-trained ImageNet weights adapted for medical imaging
-- **🎯 No Manual Input Required**: Automated analysis without needing age, BMI, or other clinical data
+- Python 3.10+ recommended
+- MongoDB connection string
+- Redis instance
+- AWS S3 bucket and credentials
+- SMTP credentials for email verification and password reset
+- Google Drive file ID for the trained model
 
-##  Technology Stack
+## Environment Variables
 
-### Backend
-- **Python 3.8+**: Core programming language
-- **Flask**: Web framework for API endpoints
-- **TensorFlow/Keras**: Deep learning framework for ResNet50 model
-- **NumPy**: Numerical operations and array processing
-- **OpenCV/PIL**: Image preprocessing and manipulation
-- **.pth/SavedModel**: Model serialization format
+Create a `.env` file in the project root:
 
-### Frontend
-- **HTML5**: Structure and semantic markup
-- **CSS3**: Styling and responsive design
-- **JavaScript**: Client-side interactivity
-- **Bootstrap** (if applicable): UI components
+```env
+SECRET_KEY=change-me
+JWT_SECRET_KEY=change-me-too
+MONGO_URI=mongodb+srv://user:password@cluster/dbname
+REDIS_URL=redis://localhost:6379/0
 
-##  Installation
+FRONTEND_URL=http://localhost:3000
+ADMIN_EMAIL=admin@example.com
 
-### Prerequisites
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USERNAME=your-email@example.com
+MAIL_PASSWORD=your-app-password
+MAIL_DEFAULT_SENDER=your-email@example.com
 
-- Python 3.8 or higher
-- pip (Python package manager)
-- Git
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_REGION=ap-south-1
+S3_BUCKET_NAME=your-bucket-name
 
-### Step 1: Clone the Repository
+MODEL_FILE_ID=google-drive-model-file-id
+```
+
+Notes:
+
+- `MONGO_URI` is required at startup.
+- `MODEL_FILE_ID` is required the first time inference runs if `ml_models/knee_model2.pth` is not already present.
+- `FRONTEND_URL` is used as the allowed CORS origin.
+- The model is saved locally at `ml_models/knee_model2.pth` after download.
+
+## Installation
 
 ```bash
 git clone https://github.com/Shyam414/Osteoporosis-Risk-Prediction.git
 cd Osteoporosis-Risk-Prediction
-```
 
-### Step 2: Set Up Virtual Environment (Recommended)
-
-```bash
-# Create virtual environment
 python -m venv venv
-
-# Activate virtual environment
-# On Windows:
 venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-```
 
-### Step 3: Install Backend Dependencies
-
-```bash
-cd backend
 pip install -r requirements.txt
 ```
 
-### Step 4: Run the Application
+On macOS/Linux, activate the virtual environment with:
 
 ```bash
-# From the backend directory
+source venv/bin/activate
+```
+
+## Running Locally
+
+```bash
 python app.py
 ```
 
-The application should now be running at `http://localhost:5000` (or the specified port).
+The API starts on:
 
-##  Usage
-
-### Starting the Application
-
-1. Start the backend server:
-   ```bash
-   cd backend
-   python app.py
-   ```
-
-2. Open your web browser and navigate to `http://localhost:5000`
-
-### Making Predictions
-
-1. **Upload Medical Image**: 
-   - Click the upload button or drag-and-drop your medical image
-   - Supported formats: JPEG, PNG, DICOM
-   - Recommended: X-ray images, DXA scans, or bone density images
-
-2. **Automatic Processing**: The system will:
-   - Preprocess the image (resize, normalize)
-   - Feed it through the ResNet50 model
-   - Extract bone structure and density patterns
-
-3. **Review Results**: The system will display:
-   - Risk probability score (0-100%)
-   - Risk category (Low, Moderate, High)
-   - Confidence level
-   - Visual heatmap showing areas of concern (if enabled)
-   - Recommendations for next steps
-
-### Supported Image Types
-
-- **X-ray Images**: Hip, spine, or wrist X-rays
-- **DXA Scans**: Bone density scans
-- **CT Scans**: Cross-sectional bone images
-- **Other**: Any bone-related medical imaging
-
-### Example Workflow
-
-```
-User uploads image → Image preprocessing → ResNet50 analysis → Risk prediction → Results display
+```text
+http://localhost:5000
 ```
 
-##  Model Information
+Health check:
 
-### Machine Learning Approach
-
-This project utilizes **deep learning** for osteoporosis risk prediction, leveraging transfer learning with the **ResNet50** architecture:
-
-- **ResNet50 (Pre-trained)**: A 50-layer deep convolutional neural network originally trained on ImageNet, adapted for medical image analysis or feature extraction from clinical data
-- **Transfer Learning**: Utilizes pre-trained weights to accelerate training and improve performance
-- **Current Research**: Active ML research is ongoing to optimize the model architecture and improve prediction accuracy
-
-#### Why ResNet50?
-
-ResNet50's architecture is particularly effective for medical image analysis:
-- **Deep Feature Learning**: 50 layers capable of learning complex bone patterns
-- **Residual Connections**: Prevents vanishing gradients, enabling training of very deep networks
-- **Transfer Learning**: Pre-trained on ImageNet, fine-tuned on medical bone images
-- **Spatial Hierarchy**: Captures both low-level (texture) and high-level (structure) features
-- **Proven Medical Imaging Performance**: Widely used in radiology and diagnostic imaging tasks
-
-### Input Requirements
-
-- **Image Format**: JPEG, PNG, or DICOM files
-- **Image Type**: X-rays, DXA scans, CT scans of bones (hip, spine, wrist)
-- **Resolution**: Any resolution (automatically resized to 224×224)
-- **Color**: Grayscale or RGB (converted during preprocessing)
-- **No Additional Data Needed**: Age, BMI, gender, or other clinical parameters are not required
-
-### Key Features Identified
-
-The ResNet50 model automatically learns and identifies critical visual patterns in bone images:
-- **Bone Density Patterns**: Trabecular bone structure and cortical thickness
-- **Texture Analysis**: Bone microarchitecture and porosity patterns
-- **Structural Features**: Bone geometry and architectural deterioration
-- **Intensity Variations**: Bone mineral density distribution
-- **Spatial Relationships**: Relative bone strength indicators across regions
-
-### Model Performance
-
-Typical performance metrics for image-based osteoporosis detection:
-- **Accuracy**: ~85-95%
-- **AUC-ROC**: ~0.88-0.96
-- **Sensitivity**: High detection rate for osteoporotic bone structures
-- **Specificity**: Accurate identification of healthy bone patterns
-
-*Note: Actual performance may vary based on image quality, dataset, and specific model implementation.*
-
-### Image Processing Pipeline
-
-1. **Input**: Medical image upload (JPEG, PNG, DICOM)
-2. **Preprocessing**:
-   - Image resizing to 224×224 pixels (ResNet50 input size)
-   - Normalization and standardization
-   - Contrast enhancement (if needed)
-3. **Feature Extraction**: ResNet50 convolutional layers
-4. **Classification**: Fully connected layers for risk prediction
-5. **Output**: Risk probability and category
-
-##  Project Structure
-
-```
-Osteoporosis-Risk-Prediction/
-│
-├── backend/
-│   ├── app.py                 # Flask application and API endpoints
-│   ├── model.h5               # Trained ResNet50 model (HDF5 format)
-│   ├── resnet_model/          # SavedModel format (alternative)
-│   ├── requirements.txt       # Python dependencies
-│   └── utils/                 # Utility functions
-│       ├── image_preprocessing.py  # Image preprocessing pipeline
-│       ├── prediction.py      # Prediction logic with ResNet50
-│       └── visualization.py   # Heatmap and visualization tools
-│
-├── frontend/
-│   ├── index.html             # Main HTML page with image upload
-│   ├── styles.css             # Styling
-│   ├── script.js              # Client-side JavaScript for image handling
-│   └── assets/                # Images, icons, etc.
-│       └── sample_xray.jpg    # Sample image for demo
-│
-├── notebooks/                 # Jupyter notebooks
-│   ├── resnet50_training.ipynb    # ResNet50 model training
-│   ├── data_augmentation.ipynb    # Image augmentation experiments
-│   └── model_evaluation.ipynb     # Performance analysis
-│
-├── data/                      # Dataset directory
-│   ├── train/                 # Training images
-│   │   ├── osteoporosis/      # Positive cases
-│   │   └── normal/            # Negative cases
-│   ├── test/                  # Test images
-│   │   ├── osteoporosis/
-│   │   └── normal/
-│   └── validation/            # Validation images
-│       ├── osteoporosis/
-│       └── normal/
-│
-├── research/                  # Research documentation
-│   ├── model_experiments.md   # ML research notes
-│   ├── performance_metrics.md # Model evaluation results
-│   └── architecture_comparison.md  # ResNet50 vs other models
-│
-├── docs/                      # Documentation
-│   ├── model_documentation.md
-│   └── image_requirements.md  # Supported image formats & specs
-│
-├── README.md                  # This file
-├── LICENSE                    # License information
-└── .gitignore                 # Git ignore rules
+```http
+GET /
 ```
 
-##  Contributing
+Response:
 
-Contributions are welcome! Here's how you can help:
+```json
+{
+  "msg": "API is running. Use /auth/login to authenticate."
+}
+```
 
-### How to Contribute
+## API Endpoints
 
-1. **Fork the repository**
-2. **Create a feature branch**
-   ```bash
-   git checkout -b feature/AmazingFeature
-   ```
-3. **Commit your changes**
-   ```bash
-   git commit -m 'Add some AmazingFeature'
-   ```
-4. **Push to the branch**
-   ```bash
-   git push origin feature/AmazingFeature
-   ```
-5. **Open a Pull Request**
+### Authentication
 
-### Contribution Ideas
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/auth/register` | No | Create a user and send verification email |
+| `GET` | `/auth/confirm/<token>` | No | Verify user email |
+| `POST` | `/auth/login` | No | Login and return access/refresh tokens |
+| `POST` | `/auth/refresh` | Refresh token | Issue a new access token |
+| `POST` | `/auth/logout` | Access token | Remove active session from Redis |
+| `POST` | `/auth/forgot-password` | No | Send password reset email |
+| `GET` | `/auth/reset-password/<token>` | No | Render reset password form |
+| `POST` | `/auth/reset-password` | No | Reset password with token |
 
-- 🐛 Bug fixes
-- ✨ New features (e.g., additional DL architectures, Grad-CAM visualization)
-- 📝 Documentation improvements
-- 🧪 Test coverage expansion with diverse medical images
-- 🎨 UI/UX enhancements for image upload interface
-- 🌐 Support for DICOM format
-- 🔍 Model interpretability features (attention maps, heatmaps)
-- 📊 Performance benchmarking on different image types
+### Prediction
 
-### Code Style
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/predict`, `/predict/`, `/predict/upload` | Access token | Upload image, store it in S3, run prediction |
+| `GET` | `/predict/result/<job_id>` | Access token | Fetch one prediction record |
 
-- Follow PEP 8 for Python code
-- Use meaningful variable and function names
-- Add comments for complex logic
-- Write unit tests for new features
+Upload field name:
 
-##  Disclaimer
+```text
+file
+```
 
-**This tool is for educational and research purposes only.** It should not be used as a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of qualified healthcare providers with any questions regarding medical conditions.
+Supported file extensions:
 
+```text
+jpg, jpeg, png
+```
 
-##  Acknowledgments
+Prediction response includes:
 
-- Medical imaging datasets for osteoporosis research
-- ResNet50 architecture by Microsoft Research
-- ImageNet pre-trained weights
-- Research papers on deep learning for bone health assessment
-- Open-source deep learning community
-- Medical imaging experts and radiologists for guidance
-- Contributors and testers
+- `job_id`
+- `filename`
+- `image_key`
+- `image_url`
+- `prediction` (`Positive` or `Negative`)
+- `probability`
+- `status`
+- `uploaded_at`
 
-##  Contact
+### Dashboard
 
-**Shyam** - [@Shyam414](https://github.com/Shyam414)
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/dashboard` | Access token | Return current user's email and prediction records |
 
-Project Link: [https://github.com/Shyam414/Osteoporosis-Risk-Prediction](https://github.com/Shyam414/Osteoporosis-Risk-Prediction)
+### Admin
 
----
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/admin/bootstrap` | Access token | Promote the configured `ADMIN_EMAIL` user to admin |
+| `GET` | `/admin/stats` | Admin | Return user and record counts |
+| `GET` | `/admin/users` | Admin | List all users without passwords |
+| `GET` | `/admin/records` | Admin | List all prediction records |
+| `DELETE` | `/admin/records/<record_id>` | Admin | Delete one record and its S3 image |
+| `DELETE` | `/admin/users/<user_id>` | Admin | Delete a non-admin user, records, and images |
+| `POST` | `/admin/users/<user_id>/verify` | Admin | Mark a user as verified |
+| `POST` | `/admin/users/<user_id>/promote` | Admin | Promote a verified user to admin |
+| `POST` | `/admin/users/<user_id>/demote` | Admin | Demote an admin user, except self/last admin |
 
-##  Future Enhancements
+## Example Requests
 
-- [ ] Model optimization and hyperparameter tuning for ResNet50
-- [ ] Comparison with other architectures (VGG, EfficientNet, DenseNet, Vision Transformers)
-- [ ] Grad-CAM and attention visualization for model interpretability
-- [ ] Support for DICOM format and metadata extraction
-- [ ] Batch processing for multiple images
-- [ ] Integration with PACS (Picture Archiving and Communication System)
-- [ ] Mobile application development with on-device inference
-- [ ] Multi-language support
-- [ ] API documentation with Swagger/OpenAPI
-- [ ] Docker containerization
-- [ ] Cloud deployment (AWS, Azure, GCP) with GPU support
-- [ ] Real-time model retraining pipeline with new data
-- [ ] Ensemble methods combining ResNet50 with other CNN architectures
-- [ ] Data augmentation strategies (rotation, flipping, noise injection)
-- [ ] Uncertainty quantification and confidence intervals
-- [ ] Multi-site bone analysis (hip, spine, wrist simultaneously)
-- [ ] Report generation with image annotations
+Register:
 
----
+```bash
+curl -X POST http://localhost:5000/auth/register \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"user@example.com\",\"password\":\"StrongPass@123\"}"
+```
 
-###  Quick Stats
+Login:
 
-- **Languages**: Python, HTML, CSS, JavaScript
-- **Framework**: Flask, TensorFlow/Keras
-- **ML Architecture**: ResNet50 (Transfer Learning)
-- **Input**: Medical Images (X-ray, DXA, CT scans)
-- **ML Libraries**: TensorFlow, Keras, NumPy, OpenCV
-- **Image Processing**: PIL/Pillow, OpenCV
-- **Status**: Active Development & Research
+```bash
+curl -X POST http://localhost:5000/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"user@example.com\",\"password\":\"StrongPass@123\"}"
+```
 
----
+Upload an image:
 
-** If you find this project useful, please consider giving it a star!**
+```bash
+curl -X POST http://localhost:5000/predict/upload \
+  -H "Authorization: Bearer <access_token>" \
+  -F "file=@sample.jpg"
+```
 
-*Last Updated: January 2026*
+Get dashboard:
+
+```bash
+curl http://localhost:5000/dashboard \
+  -H "Authorization: Bearer <access_token>"
+```
+
+## Model Details
+
+The prediction service in `services/ml_service.py` uses:
+
+- `torchvision.models.resnet50(weights=None)`
+- A final fully connected layer with 2 output classes
+- Image resize to `224 x 224`
+- ImageNet normalization values
+- Labels:
+  - `0`: `Negative`
+  - `1`: `Positive`
+
+The model file is expected at:
+
+```text
+ml_models/knee_model2.pth
+```
+
+If the file is missing, the service downloads it from Google Drive using `MODEL_FILE_ID`.
+
+## Deployment
+
+This repository includes:
+
+- `wsgi.py` for WSGI servers such as Gunicorn
+- `vercel.json` for Vercel Python deployment
+
+Gunicorn example:
+
+```bash
+gunicorn wsgi:app
+```
+
+Vercel uses `app.py` as configured in `vercel.json`.
+
+## Security Notes
+
+- Do not commit `.env` or real credentials.
+- Use strong values for `SECRET_KEY` and `JWT_SECRET_KEY`.
+- Use app-specific SMTP passwords where possible.
+- Restrict S3 bucket permissions to only what the API needs.
+- Configure Redis and MongoDB with authentication in production.
+
+## Status
+
+This project currently contains the backend API only. A separate frontend can consume the JSON endpoints and use `FRONTEND_URL` as the allowed CORS origin.
