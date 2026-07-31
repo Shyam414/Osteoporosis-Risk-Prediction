@@ -152,12 +152,6 @@ def login():
     access_token = create_access_token(identity=user_id)
     refresh_token = create_refresh_token(identity=user_id)
 
-    redis_client.set(
-        f"session:{user_id}",
-        access_token,
-        ex=current_app.config["JWT_ACCESS_TOKEN_EXPIRES"]
-    )
-
     return jsonify({
         "msg": "Login successful",
         "access_token": access_token,
@@ -659,12 +653,6 @@ def refresh():
 
     new_access = create_access_token(identity=user_id)
 
-    redis_client.set(
-        f"session:{user_id}",
-        new_access,
-        ex=current_app.config["JWT_ACCESS_TOKEN_EXPIRES"]
-    )
-
     return jsonify({
         "access_token": new_access
     }), 200
@@ -674,5 +662,4 @@ def refresh():
 @login_required
 def logout():
     user_id = get_jwt_identity()
-    redis_client.delete(f"session:{user_id}")
     return jsonify({"msg": "Logged out"}), 200
