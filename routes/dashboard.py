@@ -1,11 +1,11 @@
 from flask import Blueprint, jsonify
 
-from run import mongo
 from utils.validators import (
     login as login_required,
     current_user,
     current_user_id,
 )
+from utils.metadata_cache import get_dashboard_record_metadata
 
 from services.s3_service import generate_presigned_url
 
@@ -19,14 +19,9 @@ def index():
     user = current_user()
     user_id = current_user_id()
 
-    records = list(
-        mongo.db.records.find(
-            {"user_id": user_id}
-        ).sort(
-            "uploaded_at",
-            -1
-        )
-    )
+    # Redis holds MongoDB record metadata only. S3 URLs are generated below for
+    # every response because they are temporary credentials, not cacheable data.
+    records = get_dashboard_record_metadata(user_id)
 
     for record in records:
 

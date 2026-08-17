@@ -3,8 +3,6 @@ from dotenv import load_dotenv
 from flask import Flask
 from flask_pymongo import PyMongo
 from flask_mail import Mail
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from flask_jwt_extended import JWTManager
 from flask_redis import FlaskRedis
 from flask_cors import CORS  
@@ -13,7 +11,6 @@ load_dotenv()
 
 mongo = PyMongo()
 mail = Mail()
-limiter = Limiter(key_func=get_remote_address,storage_uri=os.getenv("REDIS_URL"))
 jwt = JWTManager()
 redis_client = FlaskRedis()
 
@@ -32,6 +29,9 @@ def create_app():
     app.config["UPLOAD_FOLDER"] = "uploads"
 
     app.config["REDIS_URL"] = os.getenv("REDIS_URL")
+    app.config["MONGO_METADATA_CACHE_TTL"] = int(
+        os.getenv("MONGO_METADATA_CACHE_TTL", "60")
+    )
     app.config["AWS_ACCESS_KEY_ID"] = os.getenv("AWS_ACCESS_KEY_ID")
     app.config["AWS_SECRET_ACCESS_KEY"] = os.getenv("AWS_SECRET_ACCESS_KEY")
     app.config["AWS_REGION"] = os.getenv("AWS_REGION")
@@ -56,7 +56,6 @@ def create_app():
     # Init extensions
     mongo.init_app(app)
     mail.init_app(app)
-    limiter.init_app(app)
     jwt.init_app(app)
     redis_client.init_app(app)
 

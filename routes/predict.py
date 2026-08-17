@@ -1,6 +1,10 @@
 from flask import Blueprint, request, jsonify
 from utils.validators import login as login_required, current_user_id
 from run import mongo
+from utils.metadata_cache import (
+    invalidate_admin_stats,
+    invalidate_dashboard_record_metadata,
+)
 from datetime import datetime
 from services.ml_service import predict_image
 from services.s3_service import (
@@ -88,6 +92,8 @@ def upload_file():
     }
 
     mongo.db.records.insert_one(record)
+    invalidate_admin_stats()
+    invalidate_dashboard_record_metadata(user_id)
 
     record["image_url"] = generate_presigned_url(image_key)
 

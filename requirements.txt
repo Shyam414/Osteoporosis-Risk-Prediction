@@ -17,7 +17,6 @@ Flask-Mail
 
 # Cache
 Flask-Redis
-Flask-Limiter
 
 # CORS
 Flask-Cors

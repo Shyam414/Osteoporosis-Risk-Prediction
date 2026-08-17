@@ -12,7 +12,8 @@ from itsdangerous import (
     URLSafeTimedSerializer,
 )
 from utils.security import check_password_hash, generate_password_hash
-from run import limiter, mongo, mail, redis_client
+from run import mongo, mail
+from utils.metadata_cache import invalidate_admin_stats
 from flask_mail import Message
 from utils.validators import (
     login as login_required,
@@ -50,6 +51,7 @@ def register():
         "verified": False,
         "role": "user"   
     })
+    invalidate_admin_stats()
 
     # send verification email
     try:
@@ -130,7 +132,6 @@ def register():
 
 # LOGIN
 @auth_bp.route("/login", methods=["POST"])
-@limiter.limit("10 per minute")
 def login():
     data = request.get_json() or {}
     email = data.get("email", "").strip().lower()
@@ -255,6 +256,7 @@ def confirm_email(token):
         {"email": email},
         {"$set": {"verified": True}}
     )
+    invalidate_admin_stats()
 
     return (
         """
@@ -586,6 +588,7 @@ def reset_password():
             }
         }
     )
+    invalidate_admin_stats()
 
     return """
     <!DOCTYPE html>
@@ -661,5 +664,4 @@ def refresh():
 @auth_bp.route("/logout", methods=["POST"])
 @login_required
 def logout():
-    user_id = get_jwt_identity()
     return jsonify({"msg": "Logged out"}), 200

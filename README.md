@@ -2,7 +2,7 @@
 
 A Flask backend for user authentication, medical image upload, and osteoporosis risk prediction using a ResNet50-based PyTorch model.
 
-The API stores user accounts and prediction records in MongoDB, uses Redis-backed sessions for JWT login, uploads images to Amazon S3, downloads the trained model from Google Drive when needed, and returns a positive/negative osteoporosis prediction with a confidence percentage.
+The API stores user accounts and prediction records in MongoDB, uses JWTs for authentication, uses Redis only as an optional metadata cache, uploads images to Amazon S3, downloads the trained model from Google Drive when needed, and returns a positive/negative osteoporosis prediction with a confidence percentage.
 
 > Medical disclaimer: this project is for educational and research use only. It is not a substitute for professional medical advice, diagnosis, or treatment.
 
@@ -11,7 +11,7 @@ The API stores user accounts and prediction records in MongoDB, uses Redis-backe
 - User registration with email verification
 - JWT login, refresh, and logout
 - Password reset by email
-- Redis-backed session validation and login rate limiting
+- Optional Redis caching for MongoDB metadata
 - Image upload for prediction (`jpg`, `jpeg`, `png`)
 - S3 image storage with temporary pre-signed URLs
 - PyTorch ResNet50 inference
@@ -27,7 +27,6 @@ The API stores user accounts and prediction records in MongoDB, uses Redis-backe
 - Flask-JWT-Extended
 - Flask-Mail
 - Flask-Redis
-- Flask-Limiter
 - Flask-CORS
 - boto3 / Amazon S3
 - PyTorch, torchvision, Pillow
@@ -61,7 +60,7 @@ Osteoporosis-Risk-Prediction/
 
 - Python 3.10+ recommended
 - MongoDB connection string
-- Redis instance
+- Optional Redis instance for metadata caching
 - AWS S3 bucket and credentials
 - SMTP credentials for email verification and password reset
 - Google Drive file ID for the trained model
@@ -75,6 +74,7 @@ SECRET_KEY=change-me
 JWT_SECRET_KEY=change-me-too
 MONGO_URI=mongodb+srv://user:password@cluster/dbname
 REDIS_URL=redis://localhost:6379/0
+MONGO_METADATA_CACHE_TTL=60
 
 FRONTEND_URL=http://localhost:3000
 ADMIN_EMAIL=admin@example.com
@@ -97,6 +97,8 @@ MODEL_FILE_ID=google-drive-model-file-id
 Notes:
 
 - `MONGO_URI` is required at startup.
+- Redis is optional. If unavailable, authentication, predictions, and MongoDB operations continue normally; only metadata caching is bypassed.
+- `MONGO_METADATA_CACHE_TTL` controls the Redis TTL (seconds) for MongoDB metadata used by `/admin/stats` and dashboard record metadata. S3 image files and temporary pre-signed URLs are not cached.
 - `MODEL_FILE_ID` is required the first time inference runs if `ml_models/knee_model2.pth` is not already present.
 - `FRONTEND_URL` is used as the allowed CORS origin.
 - The model is saved locally at `ml_models/knee_model2.pth` after download.
@@ -155,7 +157,7 @@ Response:
 | `GET` | `/auth/confirm/<token>` | No | Verify user email |
 | `POST` | `/auth/login` | No | Login and return access/refresh tokens |
 | `POST` | `/auth/refresh` | Refresh token | Issue a new access token |
-| `POST` | `/auth/logout` | Access token | Remove active session from Redis |
+| `POST` | `/auth/logout` | Access token | Return logout success; frontend removes stored tokens |
 | `POST` | `/auth/forgot-password` | No | Send password reset email |
 | `GET` | `/auth/reset-password/<token>` | No | Render reset password form |
 | `POST` | `/auth/reset-password` | No | Reset password with token |

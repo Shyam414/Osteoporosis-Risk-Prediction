@@ -1,6 +1,11 @@
 #admin.py
 from flask import Blueprint, jsonify
 from run import mongo
+from utils.metadata_cache import (
+    get_admin_stats,
+    invalidate_admin_stats,
+    invalidate_dashboard_record_metadata,
+)
 from services.s3_service import delete_file_from_s3, generate_presigned_url
 from utils.validators import admin, current_user_id
 from utils.db_helpers import get_user_by_id, get_record_by_id, user_error_response,record_error_response
@@ -12,11 +17,7 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 @admin_bp.route("/stats", methods=["GET"])
 @admin
 def admin_stats():
-    return jsonify({
-        "total_users": mongo.db.users.count_documents({}),
-        "verified_users": mongo.db.users.count_documents({"verified": True}),
-        "total_records": mongo.db.records.count_documents({})
-    }), 200
+    return jsonify(get_admin_stats()), 200
 
 
 # GET ALL USERS
@@ -61,6 +62,8 @@ def delete_record(record_id):
             pass
 
     mongo.db.records.delete_one({"_id": record_oid})
+    invalidate_admin_stats()
+    invalidate_dashboard_record_metadata(record["user_id"])
 
     return jsonify({"msg": "Record deleted successfully"}), 200
 
@@ -94,6 +97,8 @@ def delete_user(user_id):
 
     # 4️ Delete user
     mongo.db.users.delete_one({"_id": user_oid})
+    invalidate_admin_stats()
+    invalidate_dashboard_record_metadata(user_id)
 
     return jsonify({
         "msg": "User and all associated records deleted successfully"
@@ -116,6 +121,7 @@ def verify_user(user_id):
         {"_id": user_oid},
         {"$set": {"verified": True}}
     )
+    invalidate_admin_stats()
 
     return jsonify({"msg": "User verified successfully"}), 200
 
