@@ -12,6 +12,8 @@ certifi
 # Authentication
 Flask-JWT-Extended
 
+Flask-Limiter
+
 # Mail
 Flask-Mail
 

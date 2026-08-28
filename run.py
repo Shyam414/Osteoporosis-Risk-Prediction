@@ -5,7 +5,9 @@ from flask_pymongo import PyMongo
 from flask_mail import Mail
 from flask_jwt_extended import JWTManager
 from flask_redis import FlaskRedis
-from flask_cors import CORS  
+from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 load_dotenv()
 
@@ -13,6 +15,17 @@ mongo = PyMongo()
 mail = Mail()
 jwt = JWTManager()
 redis_client = FlaskRedis()
+
+def get_rate_limit_key():
+    try:
+        from utils.validators import current_user_id
+        user_id = current_user_id()
+        if user_id:
+            return f"user:{user_id}"
+    except Exception:
+        pass
+    return get_remote_address()
+limiter = Limiter(key_func=get_rate_limit_key)
 
 def create_app():
     app = Flask(__name__)
@@ -36,6 +49,7 @@ def create_app():
     app.config["AWS_SECRET_ACCESS_KEY"] = os.getenv("AWS_SECRET_ACCESS_KEY")
     app.config["AWS_REGION"] = os.getenv("AWS_REGION")
     app.config["S3_BUCKET_NAME"] = os.getenv("S3_BUCKET_NAME")
+    app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 
 
     if not app.config["MONGO_URI"]:
@@ -58,6 +72,13 @@ def create_app():
     mail.init_app(app)
     jwt.init_app(app)
     redis_client.init_app(app)
+
+    from utils.jwt_blocklist import is_token_blocklisted
+    @jwt.token_in_blocklist_loader
+    def check_if_token_revoked(jwt_header,jwt_payload):
+        return is_token_blocklisted(jwt_payload["jti"])
+    
+    limiter.init_app(app)
 
     allowed_origins = [
         app.config["FRONTEND_URL"],

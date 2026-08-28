@@ -1,11 +1,14 @@
 # routes/auth.py
 import re
+import time
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
     get_jwt_identity,
+    get_jwt,
 )
+from utils.jwt_blocklist import blocklist_token
 from itsdangerous import (
     BadSignature,
     SignatureExpired,
@@ -19,7 +22,8 @@ from utils.validators import (
     login as login_required,
     refresh_login,
 )
-
+from run import limiter
+from pymongo.errors import DuplicateKeyError
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -40,17 +44,19 @@ def register():
     if len(password) < 8 or not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
         return jsonify({"msg": "Weak password"}), 400
 
-    if mongo.db.users.find_one({"email": email}):
-        return jsonify({"msg": "Email already registered"}), 400
-
     hashed = generate_password_hash(password)
-
-    mongo.db.users.insert_one({
-        "email": email,
-        "password": hashed,
-        "verified": False,
-        "role": "user"   
-    })
+    try:
+        mongo.db.users.insert_one({
+            "email": email,
+            "password": hashed,
+            "verified": False,
+            "role": "user"
+        })
+    #find duplicates at application level(two concurrent requests)
+    except DuplicateKeyError:
+        return jsonify({
+            "msg": "Email already registered"
+        }), 400
     invalidate_admin_stats()
 
     # send verification email
@@ -132,6 +138,7 @@ def register():
 
 # LOGIN
 @auth_bp.route("/login", methods=["POST"])
+@limiter.limit("5 per minute")
 def login():
     data = request.get_json() or {}
     email = data.get("email", "").strip().lower()
@@ -294,6 +301,7 @@ def confirm_email(token):
 
 # FORGOT PASSWORD
 @auth_bp.route("/forgot-password", methods=["POST"])
+@limiter.limit("3 per hour")
 def forgot_password():
     data = request.get_json() or {}
     email = data.get("email", "").strip().lower()
@@ -664,4 +672,27 @@ def refresh():
 @auth_bp.route("/logout", methods=["POST"])
 @login_required
 def logout():
-    return jsonify({"msg": "Logged out"}), 200
+    jwt_data = get_jwt()
+
+    jti = jwt_data["jti"]
+    expires_at = jwt_data["exp"]
+
+    remaining_seconds = max(
+        1,
+        int(expires_at - time.time())
+    )
+
+    success = blocklist_token(
+        jti,
+        remaining_seconds
+    )
+
+    if not success:
+        current_app.logger.warning(
+            "Token blocklist unavailable; "
+            "logging out client-side only"
+        )
+
+    return jsonify({
+        "msg": "Logged out successfully"
+    }), 200

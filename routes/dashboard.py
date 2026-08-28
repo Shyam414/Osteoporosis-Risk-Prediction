@@ -1,16 +1,13 @@
 from flask import Blueprint, jsonify
-
 from utils.validators import (
     login as login_required,
     current_user,
     current_user_id,
 )
 from utils.metadata_cache import get_dashboard_record_metadata
-
 from services.s3_service import generate_presigned_url
 
 dashboard_bp = Blueprint("dashboard", __name__)
-
 
 @dashboard_bp.route("", methods=["GET"])
 @login_required

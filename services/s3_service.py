@@ -10,6 +10,7 @@ AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.getenv("AWS_REGION")
 BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
+
 s3 = boto3.client(
     "s3",
     aws_access_key_id=AWS_ACCESS_KEY_ID,
@@ -18,8 +19,13 @@ s3 = boto3.client(
 )
 
 
-def upload_file_to_s3(file_obj, object_key):
-    s3.upload_fileobj(file_obj, BUCKET_NAME, object_key)
+def upload_file_to_s3(file_path, object_key):
+
+    s3.upload_file(
+        file_path,
+        BUCKET_NAME,
+        object_key
+    )
 
     return object_key
 
@@ -36,6 +42,7 @@ def download_file_from_s3(object_key, local_path):
 
 
 def delete_file_from_s3(object_key):
+
     s3.delete_object(
         Bucket=BUCKET_NAME,
         Key=object_key
@@ -43,7 +50,9 @@ def delete_file_from_s3(object_key):
 
 
 def generate_presigned_url(object_key, expires=3600):
+
     try:
+
         url = s3.generate_presigned_url(
             "get_object",
             Params={
@@ -56,4 +65,5 @@ def generate_presigned_url(object_key, expires=3600):
         return url
 
     except ClientError:
+
         return None
