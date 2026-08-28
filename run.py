@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, jsonify
 from flask_pymongo import PyMongo
 from flask_mail import Mail
 from flask_jwt_extended import JWTManager
@@ -107,6 +107,36 @@ def create_app():
     @app.route("/")
     def home():
         return {"msg": "API is running. Use /auth/login to authenticate."}
+
+    @app.route("/health", methods=["GET"])
+    def health_check():
+        health_status = {
+            "status": "healthy",
+            "mongodb": "unknown",
+            "redis": "unknown"
+        }
+
+        # MongoDB is critical
+        try:
+            mongo.db.command("ping")
+            health_status["mongodb"] = "healthy"
+        except Exception:
+            health_status["mongodb"] = "unhealthy"
+            health_status["status"] = "unhealthy"
+
+        # Redis is optional
+        try:
+            redis_client.ping()
+            health_status["redis"] = "healthy"
+        except Exception:
+            health_status["redis"] = "unavailable"
+
+            if health_status["status"] == "healthy":
+                health_status["status"] = "degraded"
+
+        status_code = 503 if health_status["status"] == "unhealthy" else 200
+
+        return jsonify(health_status), status_code
 
 
     return app
