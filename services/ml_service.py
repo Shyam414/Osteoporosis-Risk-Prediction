@@ -42,19 +42,8 @@ def download_model():
         )
 
         # Download failed
-        if downloaded_file is None:
-            raise RuntimeError(
-                "Failed to download model from Google Drive. "
-                "The file may not exist, the file ID may be invalid, "
-                "or the file may not be publicly accessible."
-            )
-
-        # Verify model file exists
-        if not os.path.exists(MODEL_PATH):
-            raise RuntimeError(
-                "Model download failed. "
-                "The model file was not created."
-            )
+        if downloaded_file is None or not os.path.exists(MODEL_PATH):
+            raise RuntimeError("Failed to download model weights")
 
         print("Model downloaded successfully")
 
@@ -96,15 +85,13 @@ def load_model():
 
         # Create ResNet50 model
         model = resnet50(weights=None)
-        model.fc = nn.Linear(
-            model.fc.in_features,
-            2
-        )
+        model.fc = nn.Linear(model.fc.in_features,2)
 
         # Load trained weights
         state_dict = torch.load(
             MODEL_PATH,
-            map_location=device
+            map_location=device,
+            weights_only=True
         )
 
         model.load_state_dict(state_dict)
@@ -148,8 +135,5 @@ def predict_image(image_path):
 
     return {
         "pred_label": idx_to_label[pred_idx],
-        "pred_prob": round(
-            float(probs[pred_idx] * 100),
-            2
-        )
+        "pred_prob": round(float(probs[pred_idx] * 100),2)
     }

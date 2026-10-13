@@ -39,34 +39,6 @@ def refresh_login(f):
 
     return decorated
 
-
-def optional_login(f):
-    @wraps(f)
-    @jwt_required(optional=True)
-    def decorated(*args, **kwargs):
-        user_id = get_jwt_identity()
-
-        g.current_user = None
-        g.current_user_id = None
-        g.current_user_oid = None
-
-        if user_id:
-            try:
-                user_oid = ObjectId(user_id)
-                user = mongo.db.users.find_one({"_id": user_oid})
-
-                if user:
-                    g.current_user = user
-                    g.current_user_id = user_id
-                    g.current_user_oid = user_oid
-            except Exception:
-                pass
-
-        return f(*args, **kwargs)
-
-    return decorated
-
-
 def admin(f):
     @login
     @wraps(f)
