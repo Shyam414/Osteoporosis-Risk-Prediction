@@ -1,0 +1,110 @@
+mongo.db.users.insert_one({
+    "email": email,
+    "password": hashed,
+    "verified": False,
+    "role": "user"
+})
+
+{
+  "_id": "ObjectId('507f1f77bcf86cd799439011')",
+  "email": "shyam@gmail.com",
+  "password": "hashed_password_value",
+  "verified": true,
+  "role": "user"
+}
+
+---------------------------------------
+
+record = {
+    "job_id": job_id,
+    "user_id": user_id,
+    "filename": file.filename,
+    "image_key": image_key,
+    "prediction": prediction["pred_label"],
+    "probability": prediction["pred_prob"],
+    "status": "completed",
+    "uploaded_at": datetime.utcnow()
+}
+
+mongo.db.records.insert_one(record)
+
+{
+  "_id": "ObjectId('507f1f77bcf86cd799439012')",
+  "job_id": "8f3b-example-job-id",
+  "user_id": "507f1f77bcf86cd799439011",
+  "filename": "xray.png",
+  "image_key": "users/507f1f77bcf86cd799439011/8f3b-example-job-id.png",
+  "prediction": "Positive",
+  "probability": 0.92,
+  "status": "completed",
+  "uploaded_at": "2026-10-14T04:00:00Z"
+}
+--------------------------------------------------
+
+def upload_file_to_s3(file_path, object_key):
+    s3.upload_file(
+        file_path,
+        BUCKET_NAME,
+        object_key
+    )
+    return object_key
+
+
+image_key = f"users/{user_id}/{job_id}.{extension}"
+
+
+S3 bucket: medilens-images
+
+Object key:
+users/507f1f77bcf86cd799439011/8f3b-example-job-id.png
+--------------------------------------------
+
+{
+  "sub": "507f1f77bcf86cd799439011",
+  "jti": "unique-token-id",
+  "iat": 1791999000,
+  "exp": 1792000000,
+  "type": "access",
+  "fresh": false
+}
+--------------------------------------------
+ADMIN_STATS_CACHE_KEY = "mongo:metadata:admin-stats:v1"
+
+stats = {
+    "total_users": mongo.db.users.count_documents({}),
+    "verified_users": mongo.db.users.count_documents(
+        {"verified": True}
+    ),
+    "total_records": mongo.db.records.count_documents({})
+}
+
+_redis_set(
+    ADMIN_STATS_CACHE_KEY,
+    json.dumps(stats),
+    ttl,
+    "admin stats write"
+)
+
+def _dashboard_cache_key(user_id):
+    return f"mongo:metadata:dashboard-records:v1:{user_id}"
+
+json_util.dumps(records)
+
+redis_client.setex(
+    f"jwt:blocklist:{jti}",
+    int(expires_in),
+    "revoked"
+)
+----------------------------------------
+
+g.current_user = {
+    "_id": ObjectId("671a1234567890abcdef1234"),
+    "name": "Shyam",
+    "email": "shyam@example.com",
+    "role": "admin"
+}
+
+g.current_user_id = "671a1234567890abcdef1234"
+
+g.current_user_oid = ObjectId("671a1234567890abcdef1234")
+-------------------------------------------------------
