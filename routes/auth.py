@@ -8,7 +8,7 @@ from flask_jwt_extended import (
     get_jwt_identity,
     get_jwt,
 )
-from utils.jwt_blocklist import blocklist_token
+from utils.jwt_blocklist import remove_user_from_blocklist,invalidate_user_sessions
 from itsdangerous import (
     BadSignature,
     SignatureExpired,
@@ -156,6 +156,7 @@ def login():
         return jsonify({"msg": "Please verify email first"}), 403
 
     user_id = str(user["_id"])
+    remove_user_from_blocklist(user_id)
 
     access_token = create_access_token(identity=user_id)
     refresh_token = create_refresh_token(identity=user_id)
@@ -668,31 +669,12 @@ def refresh():
         "access_token": new_access
     }), 200
 
-# LOGOUT
 @auth_bp.route("/logout", methods=["POST"])
 @login_required
 def logout():
-    jwt_data = get_jwt()
-
-    jti = jwt_data["jti"]
-    expires_at = jwt_data["exp"]
-
-    remaining_seconds = max(
-        1,
-        int(expires_at - time.time())
-    )
-
-    success = blocklist_token(
-        jti,
-        remaining_seconds
-    )
-
+    user_id = get_jwt_identity()
+    success = invalidate_user_sessions(user_id)
     if not success:
-        current_app.logger.warning(
-            "Token blocklist unavailable; "
-            "logging out client-side only"
-        )
+        return jsonify({"msg": "Logout failed"}), 503
 
-    return jsonify({
-        "msg": "Logged out successfully"
-    }), 200
+    return jsonify({"msg": "Logged out successfully"}), 200

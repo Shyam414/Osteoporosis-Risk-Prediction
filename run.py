@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask, jsonify
+from flask import Flask, jsonify, current_app
 from flask_pymongo import PyMongo
 from flask_mail import Mail
 from flask_jwt_extended import JWTManager
@@ -73,11 +73,17 @@ def create_app():
     jwt.init_app(app)
     redis_client.init_app(app)
 
-    from utils.jwt_blocklist import is_token_blocklisted
+    from utils.jwt_blocklist import is_user_blocklisted
     @jwt.token_in_blocklist_loader
-    def check_if_token_revoked(jwt_header,jwt_payload):
-        return is_token_blocklisted(jwt_payload["jti"])
-    
+    def check_if_user_revoked(jwt_header, jwt_payload):
+        user_id = jwt_payload.get("sub")
+        if not user_id: return True
+        try:
+            return is_user_blocklisted(user_id)
+        except Exception:
+            current_app.logger.exception("Unable to check JWT blocklist in MongoDB")
+            return True
+        
     limiter.init_app(app)
 
     allowed_origins = [
