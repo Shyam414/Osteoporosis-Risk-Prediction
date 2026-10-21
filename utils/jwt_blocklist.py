@@ -8,13 +8,7 @@ def invalidate_user_sessions(user_id, expires_in=604800):
         mongo.db.jwt_blocklist.update_one(
             {"user_id": str(user_id)},
             {
-                "$set": {
-                    "user_id": str(user_id),
-                    "blocked_until": (
-                        datetime.now(timezone.utc)
-                        + timedelta(seconds=max(1, int(expires_in)))
-                    ),
-                }
+                "$set": {"user_id": str(user_id),}
             },
             upsert=True,
         )
@@ -29,11 +23,8 @@ def invalidate_user_sessions(user_id, expires_in=604800):
 
 def is_user_blocklisted(user_id):
     try:
-        now = datetime.now(timezone.utc)
-
         entry = mongo.db.jwt_blocklist.find_one({
-            "user_id": str(user_id),
-            "blocked_until": {"$gt": now},
+        "user_id": str(user_id)
         })
 
         return entry is not None
