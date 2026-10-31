@@ -145,7 +145,7 @@ def promote_user(user_id):
         {"_id": user_oid},
         {"$set": {"role": "admin"}}
     )
-
+    invalidate_admin_stats()
     return jsonify({"msg": "User promoted to admin"}), 200
 
 
@@ -173,5 +173,5 @@ def demote_user(user_id):
         {"_id": user_oid},
         {"$set": {"role": "user"}}
     )
-
+    invalidate_admin_stats()
     return jsonify({"msg": "Admin demoted"}), 200

@@ -3,8 +3,7 @@
 from functools import wraps
 from bson import ObjectId
 from flask import g, jsonify
-from flask_jwt_extended import get_jwt_identity, jwt_required
-from run import mongo
+from flask_jwt_extended import get_jwt_identity, jwt_required, get_jwt
 
 def login(f):
     @wraps(f)
@@ -17,12 +16,8 @@ def login(f):
         except Exception:
             return jsonify({"msg": "Invalid user identity"}), 401
 
-        user = mongo.db.users.find_one({"_id": user_oid})
-
-        if not user:
-            return jsonify({"msg": "User not found"}), 404
-
-        g.current_user = user
+        claims=get_jwt()
+        g.current_user = claims
         g.current_user_id = user_id
         g.current_user_oid = user_oid
 
@@ -61,5 +56,3 @@ def current_user_id():
 
 def current_user_oid():
     return g.current_user_oid
-
-

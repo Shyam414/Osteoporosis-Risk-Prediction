@@ -158,8 +158,10 @@ def login():
     user_id = str(user["_id"])
     remove_user_from_blocklist(user_id)
 
-    access_token = create_access_token(identity=user_id)
-    refresh_token = create_refresh_token(identity=user_id)
+    role = user.get("role", "user")
+    verified = user.get("verified", False)
+    access_token = create_access_token(identity=user_id,additional_claims={"role": role,"verified": verified,"email": email})
+    refresh_token = create_refresh_token(identity=user_id,additional_claims={"role": role,"verified": verified,"email": email})
 
     return jsonify({
         "msg": "Login successful",
@@ -662,12 +664,18 @@ def reset_password():
 @refresh_login
 def refresh():
     user_id = get_jwt_identity()
+    claims = get_jwt()
 
-    new_access = create_access_token(identity=user_id)
+    new_access = create_access_token(
+        identity=user_id,
+        additional_claims={
+            "role": claims.get("role", "user"),
+            "verified": claims.get("verified", False),
+            "email": claims.get("email")
+        }
+    )
 
-    return jsonify({
-        "access_token": new_access
-    }), 200
+    return jsonify({"access_token": new_access}), 200
 
 @auth_bp.route("/logout", methods=["POST"])
 @login_required
