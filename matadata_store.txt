@@ -26,6 +26,17 @@ record = {
     "uploaded_at": datetime.utcnow()
 }
 
+{
+  job_id: '4cf1e12a-8ba9-463c-a807-50a577e8557c',
+  user_id: '6ace7a76932e7760444a7a0c',
+  filename: '145.jpg',
+  image_key: 'users/6ace7a76932e7760444a7a0c/4cf1e12a-8ba9-463c-a807-50a577e8557c.jpg',
+  prediction: 'Negative',
+  probability: Double('70.93'),
+  status: 'completed',
+  uploaded_at: ISODate('2026-10-13T18:39:14.682Z')
+}
+
 mongo.db.records.insert_one(record)
 
 {
