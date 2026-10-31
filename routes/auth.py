@@ -156,7 +156,7 @@ def login():
         return jsonify({"msg": "Please verify email first"}), 403
 
     user_id = str(user["_id"])
-    remove_user_from_blocklist(user_id)
+    # remove_user_from_blocklist(user_id)
 
     role = user.get("role", "user")
     verified = user.get("verified", False)
@@ -680,9 +680,9 @@ def refresh():
 @auth_bp.route("/logout", methods=["POST"])
 @login_required
 def logout():
-    user_id = get_jwt_identity()
-    success = invalidate_user_sessions(user_id)
-    if not success:
-        return jsonify({"msg": "Logout failed"}), 503
+    # user_id = get_jwt_identity()
+    # success = invalidate_user_sessions(user_id)
+    # if not success:
+    #     return jsonify({"msg": "Logout failed"}), 503
 
     return jsonify({"msg": "Logged out successfully"}), 200

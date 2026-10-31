@@ -73,16 +73,16 @@ def create_app():
     jwt.init_app(app)
     redis_client.init_app(app)
 
-    from utils.jwt_blocklist import is_user_blocklisted
-    @jwt.token_in_blocklist_loader
-    def check_if_user_revoked(jwt_header, jwt_payload):
-        user_id = jwt_payload.get("sub")
-        if not user_id: return True
-        try:
-            return is_user_blocklisted(user_id)
-        except Exception:
-            current_app.logger.exception("Unable to check JWT blocklist in MongoDB")
-            return True
+    # from utils.jwt_blocklist import is_user_blocklisted
+    # @jwt.token_in_blocklist_loader
+    # def check_if_user_revoked(jwt_header, jwt_payload):
+    #     user_id = jwt_payload.get("sub")
+    #     if not user_id: return True
+    #     try:
+    #         return is_user_blocklisted(user_id)
+    #     except Exception:
+    #         current_app.logger.exception("Unable to check JWT blocklist in MongoDB")
+    #         return True
         
     limiter.init_app(app)
 
