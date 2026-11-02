@@ -4,7 +4,6 @@ from functools import wraps
 from bson import ObjectId
 from flask import g, jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required, get_jwt
-from run import mongo
 
 def login(f):
     @wraps(f)
@@ -39,12 +38,7 @@ def admin(f):
     @login
     @wraps(f)
     def decorated(*args, **kwargs):
-
-        user = mongo.db.users.find_one({"_id": g.current_user_oid,"email": g.current_user.get("email")})
-        if not user:
-            return jsonify({"msg": "User does not exist"}), 401
-        
-        if user.get("role") != "admin":
+        if g.current_user.get("role") != "admin":
             return jsonify({"msg": "Admin access required"}), 403
 
         return f(*args, **kwargs)
