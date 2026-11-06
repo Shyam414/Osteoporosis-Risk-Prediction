@@ -79,9 +79,7 @@ def load_model():
         download_model()
 
         # Select device
-        device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
+        device = torch.device("cpu")
 
         # Create ResNet50 model
         model = resnet50(weights=None)
