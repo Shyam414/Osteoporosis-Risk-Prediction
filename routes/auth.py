@@ -666,16 +666,10 @@ def refresh():
     user_id = get_jwt_identity()
     claims = get_jwt()
 
-    new_access = create_access_token(
-        identity=user_id,
-        additional_claims={
-            "role": claims.get("role", "user"),
-            "verified": claims.get("verified", False),
-            "email": claims.get("email")
-        }
-    )
+    new_access = create_access_token(identity=user_id,additional_claims={"role": claims.get("role", "user"),"verified": claims.get("verified", False),"email": claims.get("email")})
+    new_refresh = create_refresh_token(identity=user_id,additional_claims={"role": claims.get("role", "user"),"verified": claims.get("verified", False),"email": claims.get("email")})
 
-    return jsonify({"access_token": new_access}), 200
+    return jsonify({"access_token": new_access,"refresh_token":new_refresh}), 200
 
 @auth_bp.route("/logout", methods=["POST"])
 @login_required
