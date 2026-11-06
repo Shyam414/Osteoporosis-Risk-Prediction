@@ -241,19 +241,13 @@ def upload_file():
 
 
 # Get Single Prediction
-@predict_bp.route(
-    "/result/<job_id>",
-    methods=["GET"]
-)
+@predict_bp.route("/result/<job_id>",methods=["GET"])
 @login_required
 def get_prediction(job_id):
 
     user_id = current_user_id()
 
-    record = mongo.db.records.find_one({
-        "job_id": job_id,
-        "user_id": user_id
-    })
+    record = mongo.db.records.find_one({"job_id": job_id,"user_id": user_id})
 
     if not record:
         return jsonify({
@@ -261,15 +255,9 @@ def get_prediction(job_id):
         }), 404
 
     # Convert MongoDB ObjectId to string
-    record["_id"] = str(
-        record["_id"]
-    )
+    record["_id"] = str(record["_id"])
 
     # Generate temporary S3 access URL
-    record["image_url"] = (
-        generate_presigned_url(
-            record["image_key"]
-        )
-    )
+    record["image_url"] = (generate_presigned_url(record["image_key"]))
 
     return jsonify(record), 200
